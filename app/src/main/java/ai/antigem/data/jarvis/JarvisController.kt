@@ -558,6 +558,7 @@ object JarvisController {
         AgentKind.AGY -> "Antigravity"
         AgentKind.OPENCODE -> "OpenCode"
         AgentKind.CODEX -> "Codex"
+        AgentKind.LOCAL -> "Local AI"
         null -> "the agent"
     }
 
@@ -1566,6 +1567,7 @@ object JarvisController {
                 AgentKind.AGY -> sendAgy(prompt)
                 AgentKind.OPENCODE -> sendOpenCode(prompt)
                 AgentKind.CODEX -> sendCodex(prompt)
+                AgentKind.LOCAL -> vm.localBackend.sendMessage(prompt)
             }
         } catch (e: Exception) {
             // the saved Jarvis chat was deleted: start a new one and send this message there (once)
@@ -1852,6 +1854,7 @@ object JarvisController {
             AgentKind.AGY -> hub.cancelCascadeInvocation(id).fold({ "Stopped." }, { "Could not stop: ${it.message}" })
             AgentKind.OPENCODE -> vm.openCodeBackend.interrupt(id).fold({ "Stopped." }, { "Could not stop: ${it.message}" })
             AgentKind.CODEX -> vm.codexBackend.interrupt(id).fold({ "Stopped." }, { "Could not stop: ${it.message}" })
+            AgentKind.LOCAL -> { vm.localBackend.stopStreaming(); "Stopped." }
         }
     }
 
@@ -1868,6 +1871,7 @@ object JarvisController {
                 AgentKind.CLAUDE -> vm.claudeBackend.loadMessages(id)
                 AgentKind.OPENCODE -> vm.openCodeBackend.loadMessages(id)
                 AgentKind.CODEX -> vm.codexBackend.loadMessages(id)
+                AgentKind.LOCAL -> vm.localBackend.loadMessages(id)
                 AgentKind.AGY -> {
                     val steps = hub.getCascadeTrajectorySteps(id).getOrNull().orEmpty()
                     ai.antigem.domain.chat.TrajectoryEngine().ingestStepsDirect(steps, id)

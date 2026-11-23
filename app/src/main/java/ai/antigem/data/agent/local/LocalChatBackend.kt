@@ -5,6 +5,7 @@ import ai.antigem.data.agent.AgentChatBackend
 import ai.antigem.data.local.LocalAiManager
 import ai.antigem.data.local.LocalAiModel
 import ai.antigem.domain.model.AgentKind
+import ai.antigem.domain.model.AiModel
 import ai.antigem.domain.model.ChatMessage
 import ai.antigem.domain.model.Conversation
 import ai.antigem.domain.model.MessageRole
@@ -60,16 +61,55 @@ class LocalChatBackend(private val context: Context) : AgentChatBackend {
     private val _selectedModel = MutableStateFlow<LocalAiModel?>(null)
     val selectedModel: StateFlow<LocalAiModel?> = _selectedModel.asStateFlow()
 
+    private val _availableModels = MutableStateFlow<List<AiModel>>(emptyList())
+    val availableModels: StateFlow<List<AiModel>> = _availableModels.asStateFlow()
+
+    val isCurrentChatActivelyRunning: StateFlow<Boolean> get() = _isStreaming
+
     private val apiBase = "http://127.0.0.1:8080/v1"
 
     init {
         startNewChat()
         LocalAiManager.scanModels()
+        scope.launch {
+            LocalAiManager.availableModels.collect { list ->
+                _availableModels.value = list.map {
+                    AiModel(id = it.name, displayName = it.name, isDefault = true)
+                }
+            }
+        }
     }
 
     fun selectModel(model: LocalAiModel) {
         _selectedModel.value = model
         _currentConversation.value = _currentConversation.value?.copy(modelId = model.name)
+    }
+
+    fun selectModel(modelId: String) {
+        val found = LocalAiManager.availableModels.value.find { it.name == modelId || it.path == modelId }
+        if (found != null) {
+            selectModel(found)
+        } else {
+            _currentConversation.value = _currentConversation.value?.copy(modelId = modelId)
+        }
+    }
+
+    fun setWorkspaceOfNewChat(path: String) {
+        _currentConversation.value = _currentConversation.value?.copy(workspaceUri = if (path.startsWith("file://")) path else "file://$path")
+    }
+
+    fun renameConversation(id: String, title: String) {
+        _conversations.value = _conversations.value.map {
+            if (it.id == id) it.copy(title = title) else it
+        }
+        if (_currentConversation.value?.id == id) {
+            _currentConversation.value = _currentConversation.value?.copy(title = title)
+        }
+    }
+
+    suspend fun loadMessages(conversationId: String): List<ChatMessage> {
+        if (_currentConversation.value?.id == conversationId) return _messages.value
+        return emptyList()
     }
 
     override fun startNewChat() {

@@ -731,11 +731,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /** Sidebar export / share of a Codex chat that is not open. */
     suspend fun loadCodexMessages(conversationId: String): List<ChatMessage> = codexBackend.loadMessages(conversationId)
 
+    /** Sidebar export / share of a Local AI chat that is not open. */
+    suspend fun loadLocalMessages(conversationId: String): List<ChatMessage> = localBackend.loadMessages(conversationId)
+
     fun renameConversation(id: String, title: String) {
         when (agentOf(id)) {
             AgentKind.CLAUDE -> claudeBackend.renameConversation(id, title)
             AgentKind.OPENCODE -> openCodeBackend.renameConversation(id, title)
             AgentKind.CODEX -> codexBackend.renameConversation(id, title)
+            AgentKind.LOCAL -> localBackend.renameConversation(id, title)
             AgentKind.AGY -> agyBackend.renameConversation(id, title)
         }
     }

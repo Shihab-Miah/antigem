@@ -1321,6 +1321,7 @@ object JarvisMcp {
         AgentKind.OPENCODE -> vm.openCodeBackend.availableModels.value
         AgentKind.CODEX -> vm.codexBackend.availableModels.value
         AgentKind.AGY -> vm.agyBackend.enabledModels.value
+        AgentKind.LOCAL -> vm.localBackend.availableModels.value
     }
 
     private fun findModel(text: String, models: List<AiModel>): AiModel? {
