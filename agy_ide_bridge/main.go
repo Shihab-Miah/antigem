@@ -26,6 +26,7 @@ import (
 	"gemini-server/pkg/config"
 	"gemini-server/pkg/handlers"
 	"gemini-server/pkg/hub"
+	"gemini-server/pkg/localai"
 	"gemini-server/pkg/memory"
 	"gemini-server/pkg/opencode"
 	"gemini-server/pkg/plugins"
@@ -386,6 +387,9 @@ func main() {
 
 	// Agent memory: memory files and chat history the agents read (~/.antigem/memory), shared by every agent
 	mux.Handle("/api/memory/", memory.NewManager(cfg.HomeDir))
+
+	// Local AI: on-device model discovery and llama-server management
+	mux.Handle("/api/localai/", localai.NewManager(cfg.HomeDir))
 
 	// Custom AntiGem plugins on disk: list, install (ZIP or GitHub repository), update, remove, export
 	pluginMgr := plugins.NewManager(cfg.HomeDir)
