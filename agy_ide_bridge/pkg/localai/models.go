@@ -1,6 +1,7 @@
 package localai
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,7 +40,7 @@ func formatBytes(b int64) string {
 	units := []string{"KB", "MB", "GB", "TB"}
 	val := float64(b) / float64(div)
 	if exp < len(units) {
-		return strings.TrimRight(strings.TrimRight(strings.Sprintf("%.2f", val), "0"), ".") + " " + units[exp]
+		return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", val), "0"), ".") + " " + units[exp]
 	}
 	return "huge"
 }
