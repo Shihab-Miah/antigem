@@ -857,7 +857,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _conversations = store.conversations
     /** Every conversation of the enabled agents, Jarvis' own chats included. */
-    val allConversations: StateFlow<List<Conversation>> = combine(_conversations, claudeBackend.conversations, openCodeBackend.conversations, codexBackend.conversations, localBackend.conversations, enabledAgents) { agy, claude, openCode, codex, local, enabled ->
+    val allConversations: StateFlow<List<Conversation>> = combine(
+        combine(_conversations, claudeBackend.conversations) { agy, claude -> agy to claude },
+        combine(openCodeBackend.conversations, codexBackend.conversations) { openCode, codex -> openCode to codex },
+        localBackend.conversations,
+        enabledAgents
+    ) { (agy, claude), (openCode, codex), local, enabled ->
         // a disabled agent's chats stay on disk but are not listed
         ((if (AgentKind.AGY in enabled) agy else emptyList()) + (if (AgentKind.CLAUDE in enabled) claude else emptyList()) +
             (if (AgentKind.OPENCODE in enabled) openCode else emptyList()) + (if (AgentKind.CODEX in enabled) codex else emptyList()) +
@@ -1682,6 +1687,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     AgentKind.CODEX -> codexBackend.refreshSkills()
                     AgentKind.AGY -> ai.antigem.data.remote.SlashCommandsCache.refresh()
                     AgentKind.OPENCODE -> openCodeBackend.refreshSlashCommands()
+                    AgentKind.LOCAL -> {}
                 }
             }
         }
