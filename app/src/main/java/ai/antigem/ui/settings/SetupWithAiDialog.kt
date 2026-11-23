@@ -62,6 +62,7 @@ private fun agentName(agent: AgentKind) = when (agent) {
     AgentKind.CODEX -> "Codex"
     AgentKind.AGY -> "Antigravity (agy)"
     AgentKind.OPENCODE -> "OpenCode"
+    AgentKind.LOCAL -> "Local AI"
 }
 
 private fun agentAccent(agent: AgentKind) = when (agent) {
@@ -69,6 +70,7 @@ private fun agentAccent(agent: AgentKind) = when (agent) {
     AgentKind.CODEX -> CodexAccent
     AgentKind.AGY -> AgyAccent
     AgentKind.OPENCODE -> OpenCodeAccent
+    AgentKind.LOCAL -> ai.antigem.ui.components.LocalAiAccent
 }
 
 /** owner/repo, owner/repo@branch or a GitHub link → a link any agent can open. */
@@ -99,6 +101,7 @@ fun repoSetupPrompt(source: String, agent: AgentKind, kind: RepoSetupKind): Stri
         AgentKind.CODEX -> "copy each skill folder (the folder holding SKILL.md, with all its files) to ~/.codex/skills/<skill-name>/"
         AgentKind.AGY -> "copy each skill folder (the folder holding SKILL.md, with all its files) to ~/.gemini/antigravity/skills/<skill-name>/"
         AgentKind.OPENCODE -> "copy each skill folder (the folder holding SKILL.md, with all its files) to ~/.config/opencode/skills/<skill-name>/"
+        AgentKind.LOCAL -> "copy each skill folder (the folder holding SKILL.md, with all its files) to ~/.local_ai/skills/<skill-name>/"
     }
     val plugins = when (agent) {
         AgentKind.CLAUDE -> listOf(
@@ -115,7 +118,7 @@ fun repoSetupPrompt(source: String, agent: AgentKind, kind: RepoSetupKind): Stri
             "A plugin (plugin.json at the top, or a Claude Code plugin or marketplace): `agy plugin install https://github.com/<owner>/<repo>` (the full https link; owner/repo alone does not work), or clone it and run `agy plugin install <folder>`.",
             "Check with `agy plugin list`."
         )
-        AgentKind.OPENCODE -> listOf(
+        AgentKind.OPENCODE, AgentKind.LOCAL -> listOf(
             "OpenCode plugins are JavaScript packages: `opencode plugin add <npm package or git link>`.",
             "OpenCode can't load Claude Code, Codex or Antigravity plugin bundles: install their skills (their skills/ folders) and MCP servers separately instead."
         )
@@ -124,7 +127,7 @@ fun repoSetupPrompt(source: String, agent: AgentKind, kind: RepoSetupKind): Stri
         AgentKind.CLAUDE -> "`claude mcp add --scope user <name> -- <command> [args]`, or `claude mcp add --scope user --transport http <name> <url>`; check with `claude mcp list`"
         AgentKind.CODEX -> "`codex mcp add <name> -- <command> [args]`, or `codex mcp add <name> --url <url>`; check with `codex mcp list`"
         AgentKind.AGY -> "`agy mcp add <name> <command> [args]` (flags go before the name), or `agy mcp add <name> <url>`; check with `agy mcp list`"
-        AgentKind.OPENCODE -> "`opencode mcp add --global <name> -- <command> [args]`, or `opencode mcp add --global <name> --url <url>`; check with `opencode mcp list`"
+        AgentKind.OPENCODE, AgentKind.LOCAL -> "`opencode mcp add --global <name> -- <command> [args]`, or `opencode mcp add --global <name> --url <url>`; check with `opencode mcp list`"
     }
     return buildString {
         appendLine("Set up this GitHub repository for $name: $url")

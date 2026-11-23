@@ -886,6 +886,7 @@ fun ChatHistoryDrawer(
                                 ai.antigem.domain.model.AgentKind.CLAUDE -> "Claude"
                                 ai.antigem.domain.model.AgentKind.OPENCODE -> "OpenCode"
                                 ai.antigem.domain.model.AgentKind.CODEX -> "Codex"
+                                ai.antigem.domain.model.AgentKind.LOCAL -> "Local AI"
                             }
                             add(agent to label)
                         }

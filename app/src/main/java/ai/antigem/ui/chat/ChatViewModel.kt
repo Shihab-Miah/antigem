@@ -82,6 +82,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     /** Dictation for Codex chats: the phone's own speech recognizer, in the device's language (Codex has none of its own). */
     val codexVoice = ai.antigem.data.jarvis.AndroidSpeechTranscriber(application) { java.util.Locale.getDefault().toLanguageTag() }
 
+    /** Local AI: on-device llama-server model runner for offline agent tasks. */
+    val localBackend = ai.antigem.data.agent.local.LocalChatBackend(application)
+
     /** Agent of the conversation on screen; chat actions go to that agent's backend. */
     val activeAgent: StateFlow<AgentKind> = store.currentConversation
         .map { it?.agent ?: AgentKind.AGY }
@@ -90,6 +93,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val isClaudeActive get() = store.currentConversation.value?.agent == AgentKind.CLAUDE
     private val isOpenCodeActive get() = store.currentConversation.value?.agent == AgentKind.OPENCODE
     private val isCodexActive get() = store.currentConversation.value?.agent == AgentKind.CODEX
+    private val isLocalActive get() = store.currentConversation.value?.agent == AgentKind.LOCAL
 
     /** Agent used for new chats, picked on the empty chat screen (remembered). */
     val newChatAgent: StateFlow<AgentKind> = claudePrefs.newChatAgent
@@ -353,9 +357,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (isClaudeActive) claudeBackend.retryConnections()
         if (isOpenCodeEnabled) openCodeBackend.retryConnections()
         if (isCodexEnabled) codexBackend.retryConnections()
+        if (isLocalActive) localBackend.retryConnections()
     }
     fun onAppForegrounded() {
         agyBackend.onAppForegrounded()
+        localBackend.onAppForegrounded()
         if (isClaudeEnabled) {
             claudeBackend.onAppForegrounded()
             // the CLI may have been installed or signed in from a terminal meanwhile
@@ -396,6 +402,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 openCodeBackend.detach()
                 codexBackend.startNewChat()
             }
+            AgentKind.LOCAL -> {
+                agyBackend.detach()
+                claudeBackend.detach()
+                openCodeBackend.detach()
+                codexBackend.detach()
+                localBackend.startNewChat()
+            }
             AgentKind.AGY -> {
                 claudeBackend.detach()
                 openCodeBackend.detach()
@@ -424,6 +437,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 claudeBackend.detach()
                 openCodeBackend.detach()
                 codexBackend.selectConversation(id)
+            }
+            AgentKind.LOCAL -> {
+                agyBackend.detach()
+                claudeBackend.detach()
+                openCodeBackend.detach()
+                codexBackend.detach()
+                localBackend.selectConversation(id)
             }
             AgentKind.AGY -> {
                 claudeBackend.detach()
@@ -489,6 +509,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             AgentKind.CLAUDE -> claudeBackend.deleteConversation(id)
             AgentKind.OPENCODE -> openCodeBackend.deleteConversation(id)
             AgentKind.CODEX -> codexBackend.deleteConversation(id)
+            AgentKind.LOCAL -> localBackend.deleteConversation(id)
             AgentKind.AGY -> agyBackend.deleteConversation(id)
         }
         // files the app copied for this chat go with it (never the user's own files picked in Files)
@@ -510,6 +531,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             agyBackend.detach()
             claudeBackend.detach()
             openCodeBackend.forkConversation(id)
+        } else if (agentOf(id) == AgentKind.LOCAL) {
+            agyBackend.detach()
+            claudeBackend.detach()
+            openCodeBackend.detach()
+            codexBackend.detach()
+            localBackend.forkConversation(id)
         } else if (agentOf(id) == AgentKind.CLAUDE) {
             agyBackend.detach()
             claudeBackend.forkConversation(id)
@@ -521,6 +548,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         isClaudeActive -> claudeBackend.selectModel(modelId)
         isOpenCodeActive -> openCodeBackend.selectModel(modelId)
         isCodexActive -> codexBackend.selectModel(modelId)
+        isLocalActive -> {
+            ai.antigem.data.local.LocalAiManager.availableModels.value.find { it.name == modelId || it.path == modelId }?.let {
+                localBackend.selectModel(it)
+            }
+        }
         else -> agyBackend.selectModel(modelId)
     }
     /**
@@ -581,6 +613,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         isClaudeActive -> claudeBackend.sendMessage(prompt)
         isOpenCodeActive -> openCodeBackend.sendMessage(prompt)
         isCodexActive -> codexBackend.sendMessage(prompt)
+        isLocalActive -> localBackend.sendMessage(prompt)
         else -> agyBackend.sendMessage(prompt)
     }
 
@@ -713,6 +746,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             AgentKind.CLAUDE -> claudeBackend.setArchived(id, archived)
             AgentKind.OPENCODE -> openCodeBackend.setArchived(id, archived)
             AgentKind.CODEX -> codexBackend.setArchived(id, archived)
+            AgentKind.LOCAL -> {}
             AgentKind.AGY -> agyBackend.setArchived(id, archived)
         }
     }
@@ -725,6 +759,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         isClaudeActive -> claudeBackend.stopStreaming()
         isOpenCodeActive -> openCodeBackend.stopStreaming()
         isCodexActive -> codexBackend.stopStreaming()
+        isLocalActive -> localBackend.stopStreaming()
         else -> agyBackend.stopStreaming()
     }
 
@@ -822,10 +857,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _conversations = store.conversations
     /** Every conversation of the enabled agents, Jarvis' own chats included. */
-    val allConversations: StateFlow<List<Conversation>> = combine(_conversations, claudeBackend.conversations, openCodeBackend.conversations, codexBackend.conversations, enabledAgents) { agy, claude, openCode, codex, enabled ->
+    val allConversations: StateFlow<List<Conversation>> = combine(_conversations, claudeBackend.conversations, openCodeBackend.conversations, codexBackend.conversations, localBackend.conversations, enabledAgents) { agy, claude, openCode, codex, local, enabled ->
         // a disabled agent's chats stay on disk but are not listed
         ((if (AgentKind.AGY in enabled) agy else emptyList()) + (if (AgentKind.CLAUDE in enabled) claude else emptyList()) +
-            (if (AgentKind.OPENCODE in enabled) openCode else emptyList()) + (if (AgentKind.CODEX in enabled) codex else emptyList()))
+            (if (AgentKind.OPENCODE in enabled) openCode else emptyList()) + (if (AgentKind.CODEX in enabled) codex else emptyList()) +
+            (if (AgentKind.LOCAL in enabled) local else emptyList()))
             .sortedByDescending { it.updatedAt }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -884,6 +920,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         AgentKind.CLAUDE -> claudeBackend
         AgentKind.OPENCODE -> openCodeBackend
         AgentKind.CODEX -> codexBackend
+        AgentKind.LOCAL -> localBackend
         else -> agyBackend
     }
 

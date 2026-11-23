@@ -971,6 +971,7 @@ private fun MainSettingsMenu(
                                 ai.antigem.domain.model.AgentKind.CLAUDE -> "Claude"
                                 ai.antigem.domain.model.AgentKind.OPENCODE -> "OpenCode"
                                 ai.antigem.domain.model.AgentKind.CODEX -> "Codex"
+                                ai.antigem.domain.model.AgentKind.LOCAL -> "Local AI"
                             }
                         }
                     claudeOn -> "Claude Code"

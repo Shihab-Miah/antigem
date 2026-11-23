@@ -37,11 +37,15 @@ val OpenCodeAccent = Color(0xFF10B981)
 /** Codex's color across the app. */
 val CodexAccent = Color(0xFF8B5CF6)
 
+/** Local AI's accent color across the app. */
+val LocalAiAccent = Color(0xFF06B6D4)
+
 fun AgentKind.label(): String = when (this) {
     AgentKind.AGY -> "Antigravity"
     AgentKind.CLAUDE -> "Claude Code"
     AgentKind.OPENCODE -> "OpenCode"
     AgentKind.CODEX -> "Codex"
+    AgentKind.LOCAL -> "Local AI"
 }
 
 fun AgentKind.accent(): Color = when (this) {
@@ -49,6 +53,7 @@ fun AgentKind.accent(): Color = when (this) {
     AgentKind.CLAUDE -> ClaudeAccent
     AgentKind.OPENCODE -> OpenCodeAccent
     AgentKind.CODEX -> CodexAccent
+    AgentKind.LOCAL -> LocalAiAccent
 }
 
 /**
